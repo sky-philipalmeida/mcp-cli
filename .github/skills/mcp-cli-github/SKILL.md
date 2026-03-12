@@ -16,64 +16,41 @@ Access MCP servers through the command line. MCP enables interaction with extern
 
 **Both formats work:** `<server> <tool>` or `<server>/<tool>`
 
+### Executing call instructions
+
+**CRITICAL**: Always execute as a **single-line command**. Do not use multi-line shell input, as it causes terminal parsing issues.
+
+**Correct Format:**
+```bash
+mcp-cli call github update_pull_request '{
+  "owner": "org-name",
+  "repo": "repo-name",
+  "pullNumber": 123,
+  "body": "## Context\n\nDescription here\n\n## Purpose\n\nMore text"
+}'
+```
+
+**Best Practices:**
+- **Single-line execution**: Pass the entire JSON as one command argument (can span visual lines but must be one shell command)
+- Use `\n` for newlines in body text (not actual line breaks)
+- Single quotes `'` around the entire JSON object
+- Double quotes `"` for all JSON property names and values
+- Escape special characters that might break shell parsing
+- Exit code `0` indicates success (even if output appears garbled)
+- Verify success with: `echo $?` (should return `0`)
+
+**Common Mistakes to Avoid:**
+- ❌ Breaking command into multi-line shell input (causes parsing errors)
+- ❌ Using double quotes around the JSON object
+- ❌ Forgetting to escape newlines with `\n`
+- ❌ Using actual newlines instead of `\n` in the body text
+
 ## Exit Codes
 
 - `0`: Success
 - `1`: Client error (bad args, missing config)
 - `2`: Server error (tool failed)
 - `3`: Network error
-
-## Common Workflows
-
-### Update PR Description
-
-When updating a PR description, always use single quotes around the JSON argument and properly escape newlines with `\n`:
-
-```bash
-mcp-cli call github update_pull_request '{
-  "owner": "org-name",
-  "repo": "repo-name",
-  "pullNumber": 123,
-  "body": "## Overview\n\nYour description here\n\n## Changes\n- Item 1\n- Item 2"
-}'
-```
-
-**Best Practices:**
-- Use `\n` for newlines in the body text
-- Single quotes around the entire JSON object
-- Double quotes for JSON property names and string values
-- For long descriptions, keep them properly formatted with sections
-- Exit code 0 indicates success, even if terminal output appears garbled
-
-### Read PR Information
-
-To get PR details before updating:
-
-```bash
-# Get full PR info
-mcp-cli call github pull_request_read '{
-  "owner": "org-name",
-  "repo": "repo-name",
-  "pullNumber": 123,
-  "method": "get"
-}'
-
-# Get PR diff
-mcp-cli call github pull_request_read '{
-  "owner": "org-name",
-  "repo": "repo-name",
-  "pullNumber": 123,
-  "method": "get_diff"
-}'
-
-# Get files changed
-mcp-cli call github pull_request_read '{
-  "owner": "org-name",
-  "repo": "repo-name",
-  "pullNumber": 123,
-  "method": "get_files"
-}'
-```
 
 ## Available Servers & Tools
 
