@@ -5,7 +5,7 @@
 # ==============================================================================
 #
 # DESCRIPTION:
-#   Automatically discovers all available MCP servers and operations,
+#   Automatically discovers all available MCP servers and tools,
 #   retrieves their JSON schemas, and updates the SKILL.md documentation.
 #
 # USAGE:
@@ -16,14 +16,14 @@
 #     bash get_schema.sh
 #
 # WHAT IT DOES:
-#   1. Discovers all MCP servers and operations via 'mcp-cli -d'
+#   1. Discovers all MCP servers and tools via 'mcp-cli -d'
 #   2. Queries JSON schema for each operation via 'mcp-cli info'
-#   3. Formats output as markdown with operations grouped by category
+#   3. Formats output as markdown with tools grouped by category
 #   4. Updates SKILL.md with results
 #
 # OUTPUT:
 #   - Updates: SKILL.md (in project root)
-#   - Creates: /tmp/mcp_operations.md (formatted output)
+#   - Creates: /tmp/mcp_tools.md (formatted output)
 #   - Creates: /tmp/mcp_raw.txt (raw mcp-cli output)
 #
 # REQUIREMENTS:
@@ -39,13 +39,13 @@
 #   mcp-cli -d
 #
 #   # View generated markdown before it's added to SKILL.md
-#   cat /tmp/mcp_operations.md
+#   cat /tmp/mcp_tools.md
 #
 # NOTES:
 #   - Script is idempotent - safe to run multiple times
-#   - Takes ~2 minutes depending on number of operations
-#   - Automatically groups operations by prefix (catalog_, health_, etc.)
-#   - Removes any existing "Available Servers & Operations" section
+#   - Takes ~2 minutes depending on number of tools
+#   - Automatically groups tools by prefix (catalog_, health_, etc.)
+#   - Removes any existing "Available Servers & Tools" section
 #   - Queries each operation from each server (no deduplication)
 #
 # ==============================================================================
@@ -60,15 +60,15 @@ if [ "${BASH_VERSINFO[0]}" -lt 4 ]; then
 fi
 
 SKILL_FILE="SKILL.md"
-TEMP_OUTPUT="/tmp/mcp_operations.md"
+TEMP_OUTPUT="/tmp/mcp_tools.md"
 TEMP_RAW="/tmp/mcp_raw.txt"
 
-echo "Discovering MCP servers and operations..."
+echo "Discovering MCP servers and tools..."
 
-# Get list of servers and operations with descriptions
+# Get list of servers and tools with descriptions
 mcp-cli -d > "$TEMP_RAW" 2>&1
 
-# Parse the output to extract servers and operations
+# Parse the output to extract servers and tools
 declare -A servers_ops
 declare -A op_descriptions
 
@@ -97,18 +97,18 @@ echo "Found ${#servers_ops[@]} server(s)"
 # Start building the markdown output
 cat > "$TEMP_OUTPUT" << 'EOF'
 
-## Available Servers & Operations
+## Available Servers & Tools
 
 EOF
 
-# Process each server and its operations
+# Process each server and its tools
 for server in "${!servers_ops[@]}"; do
   echo "Processing server: $server"
   
   ops_array=(${servers_ops[$server]})
-  echo "  Found ${#ops_array[@]} operations"
+  echo "  Found ${#ops_array[@]} tools"
   
-  # Group operations by prefix (catalog, health, status, etc.)
+  # Group tools by prefix (catalog, health, status, etc.)
   declare -A grouped_ops
   
   for op in "${ops_array[@]}"; do
@@ -122,14 +122,14 @@ for server in "${!servers_ops[@]}"; do
   
   # Write server header
   echo "" >> "$TEMP_OUTPUT"
-  echo "### $server" >> "$TEMP_OUTPUT"
+  echo "### Server: $server" >> "$TEMP_OUTPUT"
   echo "" >> "$TEMP_OUTPUT"
   
   # Process each group
   for prefix in $(echo "${!grouped_ops[@]}" | tr ' ' '\n' | sort); do
     if [[ "$prefix" != "other" ]]; then
       # Capitalize first letter for section title
-      section_title="$(echo "$prefix" | sed 's/^./\U&/') Operations"
+      section_title="$(echo "$prefix" | sed 's/^./\U&/') Tools"
       echo "#### $section_title" >> "$TEMP_OUTPUT"
       echo "" >> "$TEMP_OUTPUT"
     fi
@@ -209,10 +209,10 @@ done
 echo ""
 echo "Updating SKILL.md..."
 
-# Remove any existing "## Available Servers & Operations" section
-if grep -q "^## Available Servers & Operations" "$SKILL_FILE"; then
+# Remove any existing "## Available Servers & Tools" section
+if grep -q "^## Available Servers & Tools" "$SKILL_FILE"; then
   # Find the line number where this section starts
-  start_line=$(grep -n "^## Available Servers & Operations" "$SKILL_FILE" | head -1 | cut -d: -f1)
+  start_line=$(grep -n "^## Available Servers & Tools" "$SKILL_FILE" | head -1 | cut -d: -f1)
   
   # Find the next ## section after it (or end of file)
   next_section=$(tail -n +$((start_line + 1)) "$SKILL_FILE" | grep -n "^## " | head -1 | cut -d: -f1)
