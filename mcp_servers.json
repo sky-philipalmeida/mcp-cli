@@ -1,18 +1,11 @@
 {
   "mcpServers": {
-    "filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "."
-      ],
-      "env": {
-        "npm_config_registry": "https://registry.npmjs.org"
-      }
-    },
-    "deepwiki": {
-      "url": "https://mcp.deepwiki.com/mcp"
+    "github": {
+      "url": "https://api.githubcopilot.com/mcp/",
+      "headers": {
+        "Authorization": "Bearer <<PAT_TOKEN>>"
+      },
+      "allowedTools": ["update_pull_request","pull_request_read"]
     }
   }
 }
