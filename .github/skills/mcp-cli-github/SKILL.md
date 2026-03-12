@@ -1,5 +1,5 @@
 ---
-name: mcp-cli
+name: mcp-cli-github
 description: Interface for MCP (Model Context Protocol) servers via CLI. Use when you need to interact with external tools, APIs, or data sources through MCP servers.
 ---
 
@@ -11,96 +11,10 @@ Access MCP servers through the command line. MCP enables interaction with extern
 
 | Command | Output |
 |---------|--------|
-| `mcp-cli` | List all servers and tools |
-| `mcp-cli info <server>` | Show server tools and parameters |
-| `mcp-cli info <server> <tool>` | Get tool JSON schema |
-| `mcp-cli grep "<pattern>"` | Search tools by name |
 | `mcp-cli call <server> <tool>` | Call tool (reads JSON from stdin if no args) |
 | `mcp-cli call <server> <tool> '<json>'` | Call tool with arguments |
 
 **Both formats work:** `<server> <tool>` or `<server>/<tool>`
-
-## Workflow
-
-1. **Discover**: `mcp-cli` → see available servers
-2. **Explore**: `mcp-cli info <server>` → see tools with parameters
-3. **Inspect**: `mcp-cli info <server> <tool>` → get full JSON schema
-4. **Execute**: `mcp-cli call <server> <tool> '<json>'` → run with arguments
-
-## Examples
-
-```bash
-# List all servers
-mcp-cli
-
-# With descriptions  
-mcp-cli -d
-
-# See server tools
-mcp-cli info filesystem
-
-# Get tool schema (both formats work)
-mcp-cli info filesystem read_file
-mcp-cli info filesystem/read_file
-
-# Call tool
-mcp-cli call filesystem read_file '{"path": "./README.md"}'
-
-# Pipe from stdin (no '-' needed!)
-cat args.json | mcp-cli call filesystem read_file
-
-# Search for tools
-mcp-cli grep "*file*"
-
-# Output is raw text (pipe-friendly)
-mcp-cli call filesystem read_file '{"path": "./file"}' | head -10
-```
-
-## Advanced Chaining
-
-```bash
-# Chain: search files → read first match
-mcp-cli call filesystem search_files '{"path": ".", "pattern": "*.md"}' \
-  | head -1 \
-  | xargs -I {} mcp-cli call filesystem read_file '{"path": "{}"}'
-
-# Loop: process multiple files
-mcp-cli call filesystem list_directory '{"path": "./src"}' \
-  | while read f; do mcp-cli call filesystem read_file "{\"path\": \"$f\"}"; done
-
-# Conditional: check before reading
-mcp-cli call filesystem list_directory '{"path": "."}' \
-  | grep -q "README" \
-  && mcp-cli call filesystem read_file '{"path": "./README.md"}'
-
-# Multi-server aggregation
-{
-  mcp-cli call github search_repositories '{"query": "mcp", "per_page": 3}'
-  mcp-cli call filesystem list_directory '{"path": "."}'
-}
-
-# Save to file
-mcp-cli call github get_file_contents '{"owner": "x", "repo": "y", "path": "z"}' > output.txt
-```
-
-**Note:** `call` outputs raw text content directly (no jq needed for text extraction)
-
-## Options
-
-| Flag | Purpose |
-|------|---------|
-| `-d` | Include descriptions |
-| `-c <path>` | Specify config file |
-
-## Common Errors
-
-| Wrong Command | Error | Fix |
-|---------------|-------|-----|
-| `mcp-cli server tool` | AMBIGUOUS_COMMAND | Use `call server tool` or `info server tool` |
-| `mcp-cli run server tool` | UNKNOWN_SUBCOMMAND | Use `call` instead of `run` |
-| `mcp-cli list` | UNKNOWN_SUBCOMMAND | Use `info` instead of `list` |
-| `mcp-cli call server` | MISSING_ARGUMENT | Add tool name |
-| `mcp-cli call server tool {bad}` | INVALID_JSON | Use valid JSON with quotes |
 
 ## Exit Codes
 
@@ -109,13 +23,64 @@ mcp-cli call github get_file_contents '{"owner": "x", "repo": "y", "path": "z"}'
 - `2`: Server error (tool failed)
 - `3`: Network error
 
+## Common Workflows
 
-## Available Servers & Operations
+### Update PR Description
+
+When updating a PR description, always use single quotes around the JSON argument and properly escape newlines with `\n`:
+
+```bash
+mcp-cli call github update_pull_request '{
+  "owner": "org-name",
+  "repo": "repo-name",
+  "pullNumber": 123,
+  "body": "## Overview\n\nYour description here\n\n## Changes\n- Item 1\n- Item 2"
+}'
+```
+
+**Best Practices:**
+- Use `\n` for newlines in the body text
+- Single quotes around the entire JSON object
+- Double quotes for JSON property names and string values
+- For long descriptions, keep them properly formatted with sections
+- Exit code 0 indicates success, even if terminal output appears garbled
+
+### Read PR Information
+
+To get PR details before updating:
+
+```bash
+# Get full PR info
+mcp-cli call github pull_request_read '{
+  "owner": "org-name",
+  "repo": "repo-name",
+  "pullNumber": 123,
+  "method": "get"
+}'
+
+# Get PR diff
+mcp-cli call github pull_request_read '{
+  "owner": "org-name",
+  "repo": "repo-name",
+  "pullNumber": 123,
+  "method": "get_diff"
+}'
+
+# Get files changed
+mcp-cli call github pull_request_read '{
+  "owner": "org-name",
+  "repo": "repo-name",
+  "pullNumber": 123,
+  "method": "get_files"
+}'
+```
+
+## Available Servers & Tools
 
 
-### github
+### Server: github
 
-#### Pull Operations
+#### Pull Tools
 
 **pull_request_read** - Get information on a specific pull request in GitHub repository.
 ```json
@@ -129,28 +94,20 @@ mcp-cli call github get_file_contents '{"owner": "x", "repo": "y", "path": "z"}'
 }
 ```
 
-**pull_request_review_write** - Create and/or submit, delete review of a pull request.
+#### Update Tools
+
+**update_pull_request** - Update an existing pull request in a GitHub repository.
 ```json
 {
-  "body": "string (optional) - Review comment text",
-  "commitID": "string (optional) - SHA of commit to review",
-  "event": "string (optional) - Review action to perform.",
-  "method": "string (required) - The write operation to perform on pull request review.",
+  "base": "string (optional) - New base branch name",
+  "body": "string (optional) - New description",
+  "draft": "boolean (optional) - Mark pull request as draft (true) or ready for review (false)",
+  "maintainer_can_modify": "boolean (optional) - Allow maintainer edits",
   "owner": "string (required) - Repository owner",
-  "pullNumber": "number (required) - Pull request number",
-  "repo": "string (required) - Repository name"
+  "pullNumber": "number (required) - Pull request number to update",
+  "repo": "string (required) - Repository name",
+  "reviewers": "array (optional) - GitHub usernames to request reviews from",
+  "state": "string (optional) - New state",
+  "title": "string (optional) - New title"
 }
 ```
-
-
-### - delete_pending: Delete an existing pending review of a pull request. This requires that a pending review exists for the current user on the specified pull request.
-
-
-### - create: Create a new review of a pull request. If "event" parameter is provided, the review is submitted. If "event" is omitted, a pending review is created.
-
-
-### - submit_pending: Submit an existing pending review of a pull request. This requires that a pending review exists for the current user on the specified pull request. The "body" and "event" parameters are used when submitting the review.
-
-
-### Available methods:
-
