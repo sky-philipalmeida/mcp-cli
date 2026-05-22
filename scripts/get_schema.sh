@@ -74,8 +74,9 @@ declare -A op_descriptions
 
 current_server=""
 while IFS= read -r line; do
-  # Check if line is a server name (no leading spaces/bullets)
-  if [[ ! "$line" =~ ^[[:space:]] && -n "$line" ]]; then
+  # Check if line is a server name: a bare identifier on its own line (no spaces, no punctuation)
+  # Real server names look like: github, consul-hhe, prometheus-slu — NOT description prose
+  if [[ "$line" =~ ^[a-zA-Z][a-zA-Z0-9_-]*$ ]]; then
     current_server="$line"
     servers_ops[$current_server]=""
   # Check if line is an operation (starts with bullet)
